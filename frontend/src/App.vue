@@ -17,10 +17,18 @@ const fetchRandomBand = async () => {
     // pour l'instant je fais des boucles, mais à l'avenir je rajoute à une table dans la BDD les groupes déjà cochés pour éviter de les récupérer
     let foundNew = false;
     let attempts = 0;
-
+    const params = new URLSearchParams();
+    if (filters.value.country) params.append('country', filters.value.country);
+    if (filters.value.year) params.append('year', filters.value.year);
+    if (filters.value.hasSpotify) params.append('hasSpotify', 'true');
     while (!foundNew&&attempts<10) {
-      const response=await fetch('http://localhost:3000/bands');
+      const response=await fetch(`http://localhost:3000/bands?${params.toString()}`);
       const data=await response.json();
+      if(data.length===0) {
+        console.warn("aucun groupe trouvé avec les filtres actuels");
+        band.value=null;
+        break;
+      }
       const candidate=data[0]; 
       const alreadyChecked=checkedBands.value.find(b => b.id===candidate.id || b.band_name===candidate.band_name);
 
@@ -29,7 +37,7 @@ const fetchRandomBand = async () => {
         foundNew=true;
       }attempts++;}
 
-    if (!foundNew) {
+    if (!foundNew&&attempts>=10) {
       console.warn("pas de nouveau groupe trouvé après plusieurs tentatives");
     }
   } catch (error) {
@@ -93,9 +101,6 @@ onMounted(() => {
         <input type="checkbox" v-model="filters.hasSpotify">
       </div> <div class="filter-group">
         <button class="btn-reload" @click="fetchRandomBand">Appliquer</button>
-      </div>
-      <div class="filter-note">
-        <small>* pas encore fonctionnel</small>
       </div>
     </aside>
 
