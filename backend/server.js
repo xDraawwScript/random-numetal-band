@@ -15,7 +15,7 @@ const dbConfig = {
 const db = mysql.createPool(dbConfig);
 
 app.get('/bands', (req, res) => {
-    const { country, year, hasSpotify } = req.query;
+    const { country, year, for_fans_of, hasSpotify } = req.query;
     let sql="SELECT * FROM nu_metal_list WHERE 1=1";
     let params = [];
     if(country) {
@@ -25,6 +25,10 @@ app.get('/bands', (req, res) => {
     if(year) {
         sql+=" AND formed_year != '?' AND formed_year >= ?";
         params.push(year);
+    }
+    if(for_fans_of) {
+        sql+=" AND for_fans_of LIKE ?";
+        params.push(`%${for_fans_of}%`);
     }
     if(hasSpotify) {
         sql+=" AND spotify_link NOT IN ('-', '?', '')";
