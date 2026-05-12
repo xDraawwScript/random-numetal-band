@@ -1,15 +1,23 @@
 <script setup>
-import { ref, onMounted } from 'vue'; 
+import { ref, onMounted, watch } from 'vue'; 
 
 const band = ref(null)
-const checkedBands = ref([]) 
+const checkedBands = ref(JSON.parse(localStorage.getItem('numetal_history'))||[]);
 const loading = ref(false)
 
 const filters = ref({
   country: '',
   year: '',
   spotify: '',
+  for_fans_of: ''
 })
+watch(filters, () => {
+  fetchRandomBand();
+}, { deep: true });
+
+watch(checkedBands, (newValue)=> {
+  localStorage.setItem('numetal_history',JSON.stringify(newValue));
+},{ deep: true });
 
 const fetchRandomBand = async () => {
   loading.value = true;
@@ -17,10 +25,12 @@ const fetchRandomBand = async () => {
     // pour l'instant je fais des boucles, mais à l'avenir je rajoute à une table dans la BDD les groupes déjà cochés pour éviter de les récupérer
     let foundNew = false;
     let attempts = 0;
+    const currentBandId = band.value ? band.value.id : null;
     const params = new URLSearchParams();
     if (filters.value.country) params.append('country', filters.value.country);
     if (filters.value.year) params.append('year', filters.value.year);
     if (filters.value.hasSpotify) params.append('hasSpotify', 'true');
+    if (filters.value.for_fans_of) params.append('for_fans_of', filters.value.for_fans_of);
     while (!foundNew&&attempts<10) {
       const response=await fetch(`http://localhost:3000/bands?${params.toString()}`);
       const data=await response.json();
@@ -31,14 +41,16 @@ const fetchRandomBand = async () => {
       }
       const candidate=data[0]; 
       const alreadyChecked=checkedBands.value.find(b => b.id===candidate.id || b.band_name===candidate.band_name);
+      const isJustSkipped = candidate.id === currentBandId;
 
-      if (!alreadyChecked) {
+      if (!alreadyChecked && !isJustSkipped) {
         band.value=candidate;
         foundNew=true;
       }attempts++;}
 
     if (!foundNew&&attempts>=10) {
       console.warn("pas de nouveau groupe trouvé après plusieurs tentatives");
+      band.value = null;
     }
   } catch (error) {
     console.error("erreur de chargement :", error)
@@ -56,6 +68,52 @@ const markAsListened = () => {
 
 const removeFromHistory = (itemToRemove) => {
   checkedBands.value = checkedBands.value.filter(b => b.band_name !== itemToRemove.band_name);
+}
+
+const resetHistory = () => {
+  checkedBands.value = [];
+  fetchRandomBand();
+}
+
+const inputFichier = ref(null);
+const loadHistory = () => {
+  if (inputFichier.value) {
+    inputFichier.value.click();
+  }
+};
+const FileProcess = (event) => {
+  const fichier = event.target.files[0];
+  if (!fichier) return; 
+  const lecteur = new FileReader();
+  lecteur.onload = (e) => {
+    try {
+      const texteBrut = e.target.result;
+      const data = JSON.parse(texteBrut);
+      if (Array.isArray(data)) {
+        checkedBands.value = data;
+        alert("historique chargé ");
+      } else {
+        throw new Error("format de fichier invalide");
+      }
+      
+    } catch (erreur) {
+      console.error("erreur lecture du fichier :", erreur);
+      alert("fichier non valide");
+    }
+    event.target.value = '';
+  };
+  lecteur.readAsText(fichier);
+};
+
+const downloadHistory = () => {
+  const dataStr = JSON.parse(localStorage.getItem('numetal_history'));
+  const blob = new Blob([JSON.stringify(dataStr)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'numetal_history.json';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 const getSmartLink = (type, rawLink, bandName) => {
@@ -97,15 +155,17 @@ onMounted(() => {
         <input type="number" v-model="filters.year" placeholder="ex: 1998" class="retro-input">
       </div>
       <div class="filter-group">
+        <label>pour les fans de</label>
+        <input type="text" v-model="filters.for_fans_of" placeholder="ex: Linkin Park" class="retro-input">
+      </div>
+      <div class="filter-group">
         <label>a un spotify</label>
         <input type="checkbox" v-model="filters.hasSpotify">
-      </div> <div class="filter-group">
-        <button class="btn-reload" @click="fetchRandomBand">Appliquer</button>
       </div>
     </aside>
 
     <main class="center-stage">
-      <h1>Nu Metal random band</h1>
+      <h1 id="title">Nu Metal random band</h1>
 
       <div v-if="loading" class="loading-state">chargement</div>
 
@@ -145,12 +205,23 @@ onMounted(() => {
           <button @click="markAsListened" class="btn-action check">Écouté </button>
         </div>
       </div>
+      <div v-else class="no-results">
+    <div class="glitch-box">
+      <h2>AUCUN GROUPE</h2>
+      <p>Tous les groupes correspondant à ces filtres sont déjà dans ta liste ou n'existent pas</p>
+      <button @click="resetHistory" class="btn-action check">Réinitialiser l'historique</button>
+    </div>
+  </div>
     </main>
 
     <aside class="sidebar right-panel">
       <h3>// CHECK LIST ({{ checkedBands.length }})</h3>
+      <button v-if="checkedBands.length > 0" @click="resetHistory" class="btn-reset">Tout vider</button>
+      <button @click="loadHistory" class="btn-load">Importer un historique</button>
+      <input type="file" accept=".json" style="display: none" ref="inputFichier" @change="FileProcess" />
+      <button v-if="checkedBands.length > 0" @click="downloadHistory" class="btn-download">Exporter l'historique</button>
       <div class="history-list">
-        <div v-if="checkedBands.length === 0" class="empty-msg">Aucun groupe validé.</div>
+        <div v-if="checkedBands.length === 0" class="empty-msg">Aucun groupe écouté</div>
         
         <div v-for="(item, index) in checkedBands" :key="index" class="history-item">
           <span class="hist-name">{{ item.band_name }}</span>
@@ -184,7 +255,7 @@ body {
 </style>
 
 <style scoped>
-/* --- GRILLE MAITRESSE (LE FIX EST ICI) --- */
+/* --- GRILLE --- */
 .main-layout {
   display: grid;
   /* Utilisation de VW pour être sûr que ça fait 100% de l'écran */
@@ -233,6 +304,10 @@ body {
   color: #d32f2f; font-size: 2rem; animation: pulse 1s infinite;
 }
 
+#title {
+  text-align: center;
+  margin-bottom: 20px;
+}
 /* --- CARTE PLEIN ÉCRAN --- */
 .band-card {
   width: 100%;  /* FORCE LA LARGEUR TOTALE DE LA COLONNE */
@@ -348,5 +423,58 @@ header h2 {
   .center-stage { height: auto; min-height: 80vh; }
   .band-card { height: auto; }
   header h2 { font-size: 3rem; }
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #d32f2f;
+  margin-bottom: 15px;
+}
+.sidebar h3 {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.btn-reset, .btn-load, .btn-download {
+  background: none;
+  border: 1px solid #444;
+  color: #666;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.btn-reset:hover, .btn-load:hover, .btn-download:hover {
+  border-color: #d32f2f;
+  color: #d32f2f;
+}
+.no-results {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  padding: 40px;
+  text-align: center;
+  background-image: repeating-linear-gradient(45deg, #0d0d0d 0, #0d0d0d 1px, transparent 0, transparent 50%);
+  background-size: 10px 10px;
+}
+.glitch-box {
+  border: 1px solid #d32f2f;
+  padding: 40px;
+  background: #050505;
+  box-shadow: 0 0 20px rgba(211, 47, 47, 0.2);
+}
+.glitch-box h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 3rem;
+  color: #d32f2f;
+  margin: 0 0 15px 0;
+}
+.glitch-box p {
+  color: #666;
+  margin-bottom: 30px;
 }
 </style>
