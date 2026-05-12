@@ -15,8 +15,24 @@ const dbConfig = {
 const db = mysql.createPool(dbConfig);
 
 app.get('/bands', (req, res) => {
-    const sql="SELECT * FROM nu_metal_list ORDER BY RAND( ) LIMIT 1;"
-    db.query(sql,(err,result) => {
+    const { country, year, hasSpotify } = req.query;
+    let sql="SELECT * FROM nu_metal_list WHERE 1=1";
+    let params = [];
+    if(country) {
+        sql+=" AND country = ?";
+        params.push(country);
+    }
+    if(year) {
+        sql+=" AND formed_year != '?' AND formed_year >= ?";
+        params.push(year);
+    }
+    if(hasSpotify) {
+        sql+=" AND spotify_link NOT IN ('-', '?', '')";
+    }
+    sql+= " ORDER BY RAND() LIMIT 1";
+
+
+    db.query(sql, params, (err,result) => {
         if(err) {
             console.log('Erreur fetch : ', err);
             res.status(500).send('err serveur');
