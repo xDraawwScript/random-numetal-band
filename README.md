@@ -2,6 +2,16 @@
 
 Ce projet est une application full-stack dédiée à la découverte de groupes de nu-metal. Elle permet de générer des suggestions aléatoires basées sur des critères précis comme le pays d'origine, l'année de formation ou la disponibilité sur les plateformes de streaming.
 
+![Vue.js](https://img.shields.io/badge/vuejs-%2335495E.svg?style=for-the-badge&logo=vuedotjs&logoColor=%234FC08D)
+![NodeJS](https://img.shields.io/badge/node.js-6DA55F?style=for-the-badge&logo=node.js&logoColor=white)
+![Express.js](https://img.shields.io/badge/express.js-%23404d59.svg?style=for-the-badge&logo=express&logoColor=%2361DAFB)
+![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=for-the-badge&logo=mysql&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
+
+![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg?style=for-the-badge)
+![Genre](https://img.shields.io/badge/Genre-Nu--Metal-red?style=for-the-badge)
+![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg?style=for-the-badge)
 ## Technologies utilisées
 
 * **Frontend** : Vue.js 3 avec Vite.
